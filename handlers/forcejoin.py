@@ -1,6 +1,7 @@
 from pyrogram import filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ChatPermissions
 from pyrogram.enums import ChatMemberStatus
+import asyncio
 import db
 
 
@@ -23,42 +24,6 @@ async def is_admin(client, chat_id, user_id):
 def register_forcejoin(app):
 
     # ==========================================================
-    # 🔧 Set Force Join
-    # ==========================================================
-    @app.on_message(filters.group & filters.command("forcejoin"))
-    async def set_forcejoin(client, message: Message):
-
-        if not await is_admin(client, message.chat.id, message.from_user.id):
-            return await message.reply_text("❌ Only admin can use this command.")
-
-        parts = message.text.split(maxsplit=1)
-        if len(parts) < 2:
-            return await message.reply_text("⚙️ Usage: /forcejoin @channelusername or channel_id")
-
-        try:
-            chat = await client.get_chat(parts[1])
-        except Exception as e:
-            return await message.reply_text(f"❌ Invalid channel: {e}")
-
-        await db.set_force_channel(message.chat.id, str(chat.id))
-
-        await message.reply_text(f"✅ Force join enabled for **{chat.title}**")
-
-
-    # ==========================================================
-    # ❌ Remove Force Join
-    # ==========================================================
-    @app.on_message(filters.group & filters.command("removeforcejoin"))
-    async def remove_forcejoin(client, message: Message):
-
-        if not await is_admin(client, message.chat.id, message.from_user.id):
-            return await message.reply_text("❌ Only admin can use this command.")
-
-        await db.remove_force_channel(message.chat.id)
-        await message.reply_text("⚠️ Force join disabled.")
-
-
-    # ==========================================================
     # 🚨 Enforce Force Join
     # ==========================================================
     @app.on_message(filters.group & ~filters.service, group=0)
@@ -77,7 +42,7 @@ def register_forcejoin(app):
         if not channel_id:
             return
 
-        # Check join
+        # Check already joined
         try:
             member = await client.get_chat_member(int(channel_id), user_id)
             if member.status in [
@@ -89,13 +54,13 @@ def register_forcejoin(app):
         except:
             pass
 
-        # Get channel info
+        # Get channel
         try:
             chat = await client.get_chat(int(channel_id))
         except:
             return
 
-        # Generate invite link
+        # Invite link
         if chat.username:
             invite_link = f"https://t.me/{chat.username}"
         else:
@@ -105,7 +70,7 @@ def register_forcejoin(app):
             except:
                 invite_link = "https://t.me"
 
-        # 🔇 PERMANENT MUTE (until join)
+        # 🔇 MUTE USER
         try:
             await client.restrict_chat_member(
                 chat_id=message.chat.id,
@@ -120,72 +85,78 @@ def register_forcejoin(app):
         except Exception as e:
             print("MUTE ERROR:", e)
 
-        # ❌ Delete message
+        # ❌ Delete user message
         try:
             await message.delete()
         except:
             pass
 
-        # UI Buttons
+        # 🔘 Button UI
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📢 Channel To Be Subscribed", url=invite_link)],
-            [InlineKeyboardButton("🆗 I Subscribed", callback_data="check_sub")]
+            [InlineKeyboardButton("🔔 Join", url=invite_link)]
         ])
 
         text = f"""
-🚫 {message.from_user.mention} to be accepted in the group, please subscribe to our channel.
+{message.from_user.mention},
 
-Once joined, click the button below.
-
-🔇 Action: Muted until you join the channel.
+You have to join this channel  
+So you are able to message here.
 """
 
-        try:
-            await message.reply_text(text, reply_markup=buttons)
-        except:
-            pass
+        # Send message
+        sent = await client.send_message(
+            message.chat.id,
+            text,
+            reply_markup=buttons
+        )
 
+        # ======================================================
+        # ⏳ AUTO DELETE AFTER 45 SEC
+        # ======================================================
+        async def auto_delete():
+            await asyncio.sleep(45)
+            try:
+                await sent.delete()
+            except:
+                pass
 
-    # ==========================================================
-    # 🔁 Recheck Button
-    # ==========================================================
-    @app.on_callback_query(filters.regex("^check_sub$"))
-    async def check_subscribed(client, callback_query):
+        app.loop.create_task(auto_delete())
 
-        user_id = callback_query.from_user.id
-        chat_id = callback_query.message.chat.id
+        # ======================================================
+        # 🤖 AUTO VERIFY LOOP
+        # ======================================================
+        async def auto_verify():
+            for _ in range(15):  # check every 3 sec (total ~45 sec)
+                await asyncio.sleep(3)
 
-        channel_id = await db.get_force_channel(chat_id)
-        if not channel_id:
-            return await callback_query.answer("❌ No force join set", show_alert=True)
-
-        try:
-            member = await client.get_chat_member(int(channel_id), user_id)
-
-            if member.status in [
-                ChatMemberStatus.MEMBER,
-                ChatMemberStatus.ADMINISTRATOR,
-                ChatMemberStatus.OWNER
-            ]:
-
-                # ✅ UNMUTE
                 try:
-                    await client.restrict_chat_member(
-                        chat_id,
-                        user_id,
-                        permissions=ChatPermissions(
-                            can_send_messages=True,
-                            can_send_media_messages=True,
-                            can_send_other_messages=True,
-                            can_add_web_page_previews=True,
-                        ),
-                    )
-                except Exception as e:
-                    print("UNMUTE ERROR:", e)
+                    member = await client.get_chat_member(int(channel_id), user_id)
 
-                return await callback_query.answer("✅ You can chat now!", show_alert=True)
+                    if member.status in [
+                        ChatMemberStatus.MEMBER,
+                        ChatMemberStatus.ADMINISTRATOR,
+                        ChatMemberStatus.OWNER
+                    ]:
+                        # ✅ UNMUTE
+                        await client.restrict_chat_member(
+                            message.chat.id,
+                            user_id,
+                            permissions=ChatPermissions(
+                                can_send_messages=True,
+                                can_send_media_messages=True,
+                                can_send_other_messages=True,
+                                can_add_web_page_previews=True,
+                            ),
+                        )
 
-        except:
-            pass
+                        try:
+                            await sent.delete()
+                        except:
+                            pass
 
-        await callback_query.answer("❌ Please join the channel first!", show_alert=True)
+                        break
+
+                except:
+                    continue
+
+        app.loop.create_task(auto_verify())
