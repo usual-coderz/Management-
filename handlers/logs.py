@@ -1,5 +1,5 @@
-from pyrogram import filters
-from pyrogram.types import ChatMemberUpdated, Message
+from pyrogram import Client, filters
+from pyrogram.types import Message, ChatMemberUpdated, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMemberStatus
 from config import LOGS_GC
 
@@ -8,13 +8,34 @@ from config import LOGS_GC
 # 🔥 Register Logs
 # ==========================================================
 
-def register_logs(app):
+def register_logs(app: Client):
 
     # ======================================================
-    # 👥 Member Updates Logs
+    # 🤖 START LOG (PRIVATE)
+    # ======================================================
+    @app.on_message(filters.private & filters.command("start"))
+    async def start_log(client: Client, message: Message):
+
+        user = message.from_user
+
+        name = user.first_name
+        username = f"@{user.username}" if user.username else "No Username"
+
+        text = f"""
+{name} ᴊᴜsᴛ sᴛᴀʀᴛᴇᴅ ᴛʜᴇ ʙᴏᴛ.
+
+ᴜsᴇʀ ɪᴅ : {user.id}
+ᴜsᴇʀɴᴀᴍᴇ : {username}
+"""
+
+        await client.send_message(LOGS_GC, text)
+
+
+    # ======================================================
+    # 👥 MEMBER UPDATE LOGS
     # ======================================================
     @app.on_chat_member_updated()
-    async def member_logs(client, cmu: ChatMemberUpdated):
+    async def member_logs(client: Client, cmu: ChatMemberUpdated):
 
         if not cmu.new_chat_member:
             return
@@ -26,98 +47,126 @@ def register_logs(app):
         actor = cmu.from_user
 
         # ==================================================
-        # ➕ User Joined / Added
+        # ➕ USER JOIN / ADD
         # ==================================================
         if old in [ChatMemberStatus.LEFT, ChatMemberStatus.BANNED] and new == ChatMemberStatus.MEMBER:
 
             if not actor or actor.id == user.id:
                 text = f"""
-➕ **User Joined**
+➕ ᴜsᴇʀ ᴊᴏɪɴᴇᴅ
 
 👤 {user.mention}
-🆔 `{user.id}`
+🆔 {user.id}
 
-📥 Self joined / link
-🏠 Chat: {chat.title}
-🆔 `{chat.id}`
+📥 ᴊᴏɪɴᴇᴅ ᴠɪᴀ ʟɪɴᴋ
+🏠 {chat.title}
 """
             else:
                 text = f"""
-➕ **User Added**
+➕ ᴜsᴇʀ ᴀᴅᴅᴇᴅ
 
 👤 {user.mention}
-🆔 `{user.id}`
+🆔 {user.id}
 
-👮 Added by: {actor.mention}
-🆔 `{actor.id}`
+👮 ᴀᴅᴅᴇᴅ ʙʏ: {actor.mention}
+🆔 {actor.id}
 
-🏠 Chat: {chat.title}
+🏠 {chat.title}
 """
 
             await client.send_message(LOGS_GC, text)
 
 
         # ==================================================
-        # 👋 User Left
+        # 👋 USER LEFT
         # ==================================================
         elif old == ChatMemberStatus.MEMBER and new == ChatMemberStatus.LEFT:
 
             text = f"""
-👋 **User Left**
+👋 ᴜsᴇʀ ʟᴇғᴛ
 
 👤 {user.mention}
-🆔 `{user.id}`
+🆔 {user.id}
 
-🏠 Chat: {chat.title}
+🏠 {chat.title}
 """
             await client.send_message(LOGS_GC, text)
 
 
         # ==================================================
-        # 🚫 User Kicked / Banned
+        # 🚫 USER BANNED / KICKED
         # ==================================================
         elif new == ChatMemberStatus.BANNED:
 
             if actor and actor.id != user.id:
                 text = f"""
-🚫 **User Kicked / Banned**
+🚫 ᴜsᴇʀ ʙᴀɴɴᴇᴅ
 
 👤 {user.mention}
-🆔 `{user.id}`
+🆔 {user.id}
 
-👮 By: {actor.mention}
-🆔 `{actor.id}`
+👮 ʙʏ: {actor.mention}
+🆔 {actor.id}
 
-🏠 Chat: {chat.title}
+🏠 {chat.title}
 """
             else:
                 text = f"""
-🚫 **User Removed**
+🚫 ᴜsᴇʀ ʀᴇᴍᴏᴠᴇᴅ
 
 👤 {user.mention}
-🆔 `{user.id}`
+🆔 {user.id}
 
-🏠 Chat: {chat.title}
+🏠 {chat.title}
 """
 
             await client.send_message(LOGS_GC, text)
 
 
     # ======================================================
-    # 🤖 Start Logs (Private)
+    # 🤖 BOT ADDED IN GROUP
     # ======================================================
-    @app.on_message(filters.private & filters.command("start"))
-    async def start_log(client, message: Message):
+    @app.on_message(filters.new_chat_members)
+    async def bot_added(client: Client, message: Message):
 
+        if client.me.id not in [u.id for u in message.new_chat_members]:
+            return
+
+        chat = message.chat
         user = message.from_user
 
         text = f"""
-🤖 **Bot Started**
+✫ ɴᴇᴡ ɢʀᴏᴜᴘ
 
-👤 {user.mention}
-🆔 `{user.id}`
+🆔 {chat.id}
+📛 {chat.title}
+🔗 @{chat.username if chat.username else "Private"}
 
-📛 Name: {user.first_name}
+➕ ᴀᴅᴅᴇᴅ ʙʏ: {user.mention if user else "Unknown"}
+"""
+
+        await client.send_message(LOGS_GC, text)
+
+
+    # ======================================================
+    # ❌ BOT REMOVED FROM GROUP
+    # ======================================================
+    @app.on_message(filters.left_chat_member)
+    async def bot_removed(client: Client, message: Message):
+
+        if message.left_chat_member.id != client.me.id:
+            return
+
+        chat = message.chat
+        user = message.from_user
+
+        text = f"""
+✫ ʟᴇғᴛ ɢʀᴏᴜᴘ
+
+🆔 {chat.id}
+📛 {chat.title}
+
+❌ ʀᴇᴍᴏᴠᴇᴅ ʙʏ: {user.mention if user else "Unknown"}
 """
 
         await client.send_message(LOGS_GC, text)
