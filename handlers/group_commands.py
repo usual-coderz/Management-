@@ -12,6 +12,7 @@ from pyrogram.types import Message, ChatMemberUpdated, ChatPermissions, ChatPriv
 from pyrogram.enums import ChatMemberStatus
 from pyrogram.raw import types
 import logging
+import asyncio
 import db
 
 DEFAULT_WELCOME = "👋 Welcome {first_name} to {title}!"
@@ -65,10 +66,24 @@ async def handle_welcome(client, chat_id: int, users: list, chat_title: str):
                 title=chat_title,
             )
         except KeyError:
-            text = DEFAULT_WELCOME.format(first_name=user.first_name, title=chat_title)
+            text = DEFAULT_WELCOME.format(
+                first_name=user.first_name,
+                title=chat_title
+            )
 
         try:
-            await client.send_message(chat_id, text)
+            msg = await client.send_message(chat_id, text)
+
+            # ⏳ AUTO DELETE AFTER 2.5 SEC
+            async def auto_delete(m):
+                await asyncio.sleep(2.5)
+                try:
+                    await m.delete()
+                except:
+                    pass
+
+            asyncio.create_task(auto_delete(msg))
+
         except Exception as e:
             logger.error(f"🚨 Failed to send welcome message: {e}")
 
