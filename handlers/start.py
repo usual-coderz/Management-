@@ -40,26 +40,24 @@ Highlights:
 """
 
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⚒️ Add to Group ⚒️", url=f"https://t.me/{BOT_USERNAME}?startgroup=true")],
-            [
-                InlineKeyboardButton("⌂ Support ⌂", url=SUPPORT_GROUP),
-                InlineKeyboardButton("⌂ Update ⌂", url=UPDATE_CHANNEL),
-            ],
-            [
-                InlineKeyboardButton("※ ŎŴɳēŔ ※", url=f"tg://user?id={OWNER_ID}"),
-                InlineKeyboardButton("Repo", url="https://github.com/LearningBotsOfficial/Nomade"),
-                
-            ],
-            [InlineKeyboardButton("📚 Help Commands 📚", callback_data="help")]
-        ])
+    [InlineKeyboardButton("⚒️ Add to Group ⚒️", url=f"https://t.me/{BOT_USERNAME}?startgroup=true")],
+    [
+        InlineKeyboardButton("⌂ Support ⌂", url=SUPPORT_GROUP),
+        InlineKeyboardButton("⌂ Update ⌂", url=UPDATE_CHANNEL),
+    ],
+    [
+        InlineKeyboardButton("※ ŎŴɳēŔ ※", url=f"tg://user?id={OWNER_ID}"),
+    ],
+    [InlineKeyboardButton("📚 Help Commands 📚", callback_data="help")]
+])
 
-        # If /start command, send a new photo
-        if message.text:
-            await message.reply_photo(START_IMAGE, caption=text, reply_markup=buttons)
-        else:
-            # If callback, edit the same message
-            media = InputMediaPhoto(media=START_IMAGE, caption=text)
-            await message.edit_media(media=media, reply_markup=buttons)
+# If /start command, send a new photo
+if message.text:
+    await message.reply_photo(START_IMAGE, caption=text, reply_markup=buttons)
+else:
+    # If callback, edit the same message
+    media = InputMediaPhoto(media=START_IMAGE, caption=text)
+    await message.edit_media(media=media, reply_markup=buttons)
 
 # ==========================================================
 # Start Command
