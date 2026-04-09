@@ -17,15 +17,16 @@ from pyrogram.types import (
 from config import BOT_USERNAME, SUPPORT_GROUP, UPDATE_CHANNEL, START_IMAGE, OWNER_ID
 import db
 
+
 def register_handlers(app: Client):
 
-# ==========================================================
-# Start Message
-# ==========================================================
+    # ==========================================================
+    # Start Message
+    # ==========================================================
     async def send_start_menu(message, user):
         text = f"""
 
-   ✨ Hello {user}! ✨
+✨ Hello {user}! ✨
 
 👋 I am English chatting group Bot 🤖 
 
@@ -40,33 +41,36 @@ Highlights:
 """
 
         buttons = InlineKeyboardMarkup([
-    [InlineKeyboardButton("⚒️ Add to Group ⚒️", url=f"https://t.me/{BOT_USERNAME}?startgroup=true")],
-    [
-        InlineKeyboardButton("⌂ Support ⌂", url=SUPPORT_GROUP),
-        InlineKeyboardButton("⌂ Update ⌂", url=UPDATE_CHANNEL),
-    ],
-    [
-        InlineKeyboardButton("※ ŎŴɳēŔ ※", url=f"tg://user?id={OWNER_ID}"),
-    ],
-    [InlineKeyboardButton("📚 Help Commands 📚", callback_data="help")]
-])
+            [InlineKeyboardButton("⚒️ Add to Group ⚒️", url=f"https://t.me/{BOT_USERNAME}?startgroup=true")],
+            [
+                InlineKeyboardButton("⌂ Support ⌂", url=SUPPORT_GROUP),
+                InlineKeyboardButton("⌂ Update ⌂", url=UPDATE_CHANNEL),
+            ],
+            [
+                InlineKeyboardButton("※ ŎŴɳēŔ ※", url=f"tg://user?id={OWNER_ID}"),
+            ],
+            [InlineKeyboardButton("📚 Help Commands 📚", callback_data="help")]
+        ])
 
-# If /start command, send a new photo
-if message.text:
-    await message.reply_photo(START_IMAGE, caption=text, reply_markup=buttons)
-else:
-    # If callback, edit the same message
-    media = InputMediaPhoto(media=START_IMAGE, caption=text)
-    await message.edit_media(media=media, reply_markup=buttons)
+        # ✅ NOW INSIDE FUNCTION
+        if message.text:
+            await message.reply_photo(
+                START_IMAGE,
+                caption=text,
+                reply_markup=buttons
+            )
+        else:
+            media = InputMediaPhoto(media=START_IMAGE, caption=text)
+            await message.edit_media(media=media, reply_markup=buttons)
 
-# ==========================================================
-# Start Command
-# ==========================================================
-    @app.on_message(filters.private & filters.command("start"))
-    async def start_command(client, message):
-        user = message.from_user
-        await db.add_user(user.id, user.first_name)
-        await send_start_menu(message, user.first_name)
+
+    # ==========================================================
+    # /start handler
+    # ==========================================================
+    @app.on_message(filters.command("start") & filters.private)
+    async def start_handler(client, message):
+        user = message.from_user.first_name
+        await send_start_menu(message, user)
 
 # ==========================================================
 # Help Menu Message
