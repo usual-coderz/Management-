@@ -111,7 +111,7 @@ def register_forcejoin(app):
         # ⏳ AUTO DELETE AFTER 45 SEC
         # ======================================================
         async def auto_delete():
-            await asyncio.sleep(45)
+            await asyncio.sleep(15)
             try:
                 await sent.delete()
             except:
@@ -123,7 +123,7 @@ def register_forcejoin(app):
         # 🤖 AUTO VERIFY LOOP
         # ======================================================
         async def auto_verify():
-            for _ in range(15):  # check every 3 sec (total ~45 sec)
+            for _ in range(9):  # check every 3 sec (total ~45 sec)
                 await asyncio.sleep(3)
 
                 try:
