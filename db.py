@@ -1,16 +1,15 @@
 # ============================================================
 # Group Manager Bot
-# Author: LearningBotsOfficial (https://github.com/LearningBotsOfficial) 
-# Support: https://t.me/LearningBotsCommunity
-# Channel: https://t.me/learning_bots
-# YouTube: https://youtube.com/@learning_bots
-# License: Open-source (keep credits, no resale)
+# Author: LearningBotsOfficial
 # ============================================================
-
 
 import motor.motor_asyncio
 from config import MONGO_URI, DB_NAME
 import logging
+
+# ==========================================================
+# 🔌 MongoDB Setup
+# ==========================================================
 
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
 db = client[DB_NAME]
@@ -18,7 +17,7 @@ db = client[DB_NAME]
 logging.info("✅ MongoDB initialized")
 
 # ==========================================================
-# 🟢 Welcome
+# 🟢 Welcome System
 # ==========================================================
 
 async def set_welcome_message(chat_id, text: str):
@@ -45,7 +44,7 @@ async def get_welcome_status(chat_id) -> bool:
 
 
 # ==========================================================
-# 🔒 Lock
+# 🔒 Locks System
 # ==========================================================
 
 async def set_lock(chat_id, lock_type, status: bool):
@@ -61,12 +60,12 @@ async def get_locks(chat_id):
 
 
 # ==========================================================
-# ⚠️ Warn
+# ⚠️ Warn System
 # ==========================================================
 
 async def add_warn(chat_id: int, user_id: int) -> int:
     data = await db.warns.find_one({"chat_id": chat_id, "user_id": user_id})
-    warns = data.get("count", 0) + 1 if data else 1
+    warns = (data.get("count", 0) + 1) if data else 1
 
     await db.warns.update_one(
         {"chat_id": chat_id, "user_id": user_id},
@@ -88,17 +87,26 @@ async def reset_warns(chat_id: int, user_id: int):
 
 
 # ==========================================================
-# 🧹 Cleanup
+# 🔗 Force Join System
 # ==========================================================
 
-async def clear_group_data(chat_id: int):
-    await db.welcome.delete_one({"chat_id": chat_id})
-    await db.locks.delete_one({"chat_id": chat_id})
-    await db.warns.delete_many({"chat_id": chat_id})
+async def set_force_channel(chat_id, channel_id: str):
+    await db.forcejoin.update_one(
+        {"chat_id": chat_id},
+        {"$set": {"channel_id": channel_id}},
+        upsert=True
+    )
+
+async def get_force_channel(chat_id):
+    data = await db.forcejoin.find_one({"chat_id": chat_id})
+    return data.get("channel_id") if data else None
+
+async def remove_force_channel(chat_id):
+    await db.forcejoin.delete_one({"chat_id": chat_id})
 
 
 # ==========================================================
-# 👤 User
+# 👤 Users
 # ==========================================================
 
 async def add_user(user_id, first_name):
@@ -110,7 +118,18 @@ async def add_user(user_id, first_name):
 
 async def get_all_users():
     users = []
-    async for document in db.users.find({}, {"_id": 0, "user_id": 1}):
-        if "user_id" in document:
-            users.append(document["user_id"])
+    async for doc in db.users.find({}, {"_id": 0, "user_id": 1}):
+        if "user_id" in doc:
+            users.append(doc["user_id"])
     return users
+
+
+# ==========================================================
+# 🧹 Cleanup (Single Correct Version)
+# ==========================================================
+
+async def clear_group_data(chat_id: int):
+    await db.welcome.delete_one({"chat_id": chat_id})
+    await db.locks.delete_one({"chat_id": chat_id})
+    await db.warns.delete_many({"chat_id": chat_id})
+    await db.forcejoin.delete_one({"chat_id": chat_id})
