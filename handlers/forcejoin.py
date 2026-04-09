@@ -97,10 +97,7 @@ def register_forcejoin(app):
         ])
 
         text = f"""
-{message.from_user.mention},
-
-You have to join this channel  
-So you are able to message here.
+{message.from_user.mention},You have to join this channel So you are able to message here.
 """
 
         # Send message
